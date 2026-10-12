@@ -7,7 +7,11 @@
 @project: resonant-soul
 @desc: 
 """
+import time
+
+from camel.messages import BaseMessage
 from camel.societies import RolePlaying
+from camel.types import OpenAIBackendRole
 
 from api.apps.emotion_app import analyze_emotion, save_emotion_record, generate_emotion_chart
 from api.db.services.conversation_service import ConversationService
@@ -36,6 +40,27 @@ def process_user_input(current_user, user_input, history: list):
 
     # 初始化提示词
     input_msg = role_play_session.init_chat()
+
+    # init_chat 会清空双方记忆；按各自视角恢复当前聊天记录，不跨会话共享 Agent。
+    # 显式递增的历史时间戳可避免同一时钟刻度内的消息被 CAMEL 重排。
+    history_start = time.time() - len(history)
+    for index, message in enumerate(history):
+        if message['role'] == 'user':
+            previous_msg = BaseMessage.make_user_message(
+                role_name="在校大学生", content=message['content'])
+            assistant_role = OpenAIBackendRole.USER
+            user_role = OpenAIBackendRole.ASSISTANT
+        elif message['role'] == 'assistant':
+            previous_msg = BaseMessage.make_assistant_message(
+                role_name="心灵伙伴AI心理健康助手", content=message['content'])
+            assistant_role = OpenAIBackendRole.ASSISTANT
+            user_role = OpenAIBackendRole.USER
+        else:
+            continue
+        timestamp = history_start + index
+        role_play_session.assistant_agent.update_memory(previous_msg, assistant_role, timestamp=timestamp)
+        role_play_session.user_agent.update_memory(previous_msg, user_role, timestamp=timestamp)
+
     input_msg.content = f"""
     Instruction: 请以心灵伙伴AI心理健康助手的第一人称身份回应。根据检测到的情绪 {emotions}，提供针对性的支持和建议。
     Input: {user_input}

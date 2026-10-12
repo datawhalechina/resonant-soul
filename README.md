@@ -62,6 +62,16 @@ python app.py
 
 用户界面访问地址：http://127.0.0.1:7860
 
+## 对话历史离线回归测试
+
+安装依赖后，在项目根目录运行：
+
+```shell
+python -m unittest discover -s test -p test_conversation_app.py -v
+```
+
+测试使用真实 CAMEL 角色会话和临时 SQLite 数据库，仅以固定模型后端替代外部推理，验证多轮上下文、消息顺序及新会话隔离。无需 API 密钥，不读取本地服务配置。
+
 ## 项目部署
 
 1. 依赖文件生成（新添加依赖包需要重新生成）
